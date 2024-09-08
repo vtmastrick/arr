@@ -1,0 +1,65 @@
+- hosts: arr
+  become: yes
+  become_method: sudo
+  roles:
+    - ansible_client
+    - docker
+    - arr
+  tasks:
+    - name: Create a network
+      docker_network:
+        name: arr_network
+#          - subnet:  172.2.16.0/24
+#            gateway: 172.2.16.1
+#            iprange: 172.2.16.0/26        
+
+    - name: setup nginx
+      include_tasks:
+        file: tasks/nginx.yml
+      vars:
+        application_group: "arr"
+
+    - set_fact:
+        applications:
+          - name : usenet
+
+    - name: setup application
+      include_tasks:
+        file: tasks/setup_application.yml
+      vars:
+        application: "{{ item }}"
+        application_group: "arr"
+      with_items: "{{ applications }}"
+
+    #- name: setup baseline
+      #include_tasks:
+        #file: core.yml
+
+    - set_fact:
+        applications:
+          - name : glances
+#          - name : dozzle       
+          - name : Gluetun
+          - name : Prowlarr
+          - name : NZBGet
+          - name : Sonarr_HD
+          - name : Sonarr_UHD
+          - name : Sonarr_Anime
+          - name : Torrent_qBt
+          - name : Radarr_HD
+          - name : Radarr_UHD
+          - name : Radarr_Anime
+#          - name : Recyclarr
+          - name : Torrent_QBT
+
+    - name: setup application
+      include_tasks:
+        file: tasks/setup_application.yml
+      vars:
+        application: "{{ item }}"
+        application_group: "arr"
+      with_items: "{{ applications }}"
+
+    - name: setup vpn reset
+      include_tasks:
+        file: roles/arr/tasks/cron-vpn-reset.yml

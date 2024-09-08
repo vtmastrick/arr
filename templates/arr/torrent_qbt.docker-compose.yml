@@ -1,0 +1,18 @@
+---
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent
+    container_name: qbittorrent
+    network_mode: "container:gluetun"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    environment:
+      - PUID=2070
+      - PGID=2070
+      - TZ=America/New_York
+      - WEBUI_PORT=8080
+    volumes:
+      - "/mnt/torrent_qbt/downloads:/data/torrents/downloads"
+      - "/mnt/torrent_qbt/qBittorrent/config:/config"
+      - "/etc/localtime:/etc/localtime:ro"
+    restart: unless-stopped

@@ -1,0 +1,27 @@
+---
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr_hd
+    environment:
+      - PUID=2050
+      - PGID=8888
+      - TZ=America/New_York
+    volumes:
+      - ./config/:/config
+      - /mnt/radarr_hd/movies:/data/movies #optional
+      - /mnt/radarr_hd/usenet/completed:/data/usenet/downloads/completed #optional
+      - /mnt/radarr_hd/torrents:/data/torrents/downloads #optional
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+    networks:
+      - arr_network
+      - nginx-bridge
+
+networks:
+  arr_network:
+    external: true
+  nginx-bridge:
+    external: true
+

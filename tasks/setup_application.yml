@@ -1,0 +1,227 @@
+#vars
+- name: include users for "{{ application.name }}"
+  include_vars:
+    file: users.yml
+
+- name: include map
+  include_vars:
+    file: maps.yml
+    
+- name: lower application name for "{{ application.name }}"
+  set_fact:
+    app_name_lower: "{{ application.name | lower }}"
+
+- name: get application config for "{{ application.name }}"
+  set_fact:
+    app_config: "{{ users | selectattr('app', 'equalto', app_name_lower) | first }}"
+
+- name: get application id for "{{ application.name }}"
+  set_fact:
+    app_service_name : "{{ app_config.servicename | default(app_name_lower) }}"
+   
+- name: get mount names for "{{ application.name }}"
+  set_fact:
+    app_mount_names : "{{ app_config.mounts | to_json | from_json | json_query('[*].servicename') | join(' ') }}"
+  when: app_config.mounts is defined
+
+- name: get mount names for "{{ application.name }}"
+  set_fact:
+    app_mount_names : ""
+  when: app_config.mounts is not defined
+  
+- name: vars for "{{ application.name }}"
+  set_fact:
+    pre_path:  "roles/{{ app_name_lower }}/tasks/pre.yml"
+    post_path: "roles/{{ app_name_lower }}/tasks/post.yml"
+    service_name: "docker-compose.{{ app_service_name }}.service"
+    compose_path: "/opt/docker-compose/{{ app_service_name }}/docker-compose.yml"
+    app:
+      changed : false
+
+- name: vars2 for "{{ application.name }}"
+  set_fact:
+    service_path: "/etc/systemd/system/{{ service_name }}"
+
+- name: "Include secrets"
+  include_vars:
+    file: vault.yml
+
+#home dir
+- name: create workspace for "{{ application.name }}"
+  include_tasks:
+    file: tasks/user_and_group.yml
+  vars:
+    app: "{{ app_name_lower }}"
+
+#required directories
+- name: create required directories for "{{ application.name }}"
+  file:
+    path: "{{ item_directory }}"
+    owner: "{{ app_config.username }}"
+    group: "{{ app_config.groupname }}"
+    state: directory
+  with_items: "{{ app_config.directories }}"
+  loop_control:
+    loop_var: item_directory
+  when: app_config.directories is defined
+
+- name: Check service
+  shell: systemctl status "{{ service_name }}" | grep Active | awk -v N=2 '{print $N}'
+  register: service_running
+
+- name: Stop service for "{{ application.name }}"
+  service:
+    name: "{{ service_name }}"
+    state: stopped
+  when: service_running.stdout == 'active'
+
+#samba
+- name: get cifs util for path
+  apt:
+    pkg:
+      - cifs-utils
+    state: present
+  when: app_config.mounts is defined
+
+- name: Add samba mounts for "{{ application.name }}"
+  include_tasks:
+    file: tasks/add_mount.yml
+  vars:
+    task_add_mount__app_config: "{{ app_config }}"
+    task_add_mount__mount_config: "{{ item_mount }}"
+    task_add_mount__samba_creds: "{{ vault_samba_users | selectattr('username', 'equalto', item_mount.username) | first }}"
+  with_items: "{{ app_config.mounts | selectattr('fstype', 'equalto', 'cifs') }}"
+  loop_control:
+    loop_var: item_mount
+  when: app_config.mounts is defined
+
+#nfs  
+- name: Add nfs mounts for "{{ application.name }}"
+  include_tasks:
+    file: tasks/add_mount.yml
+  vars:
+    task_add_mount__app_config: "{{ app_config }}"
+    task_add_mount__mount_config: "{{ item_mount }}"
+  with_items: "{{ app_config.mounts | selectattr('fstype', 'equalto', 'nfs') }}"
+  loop_control:
+    loop_var: item_mount
+  when: app_config.mounts is defined  
+
+#exfat  
+- name: Add exfat mounts for "{{ application.name }}"
+  include_tasks:
+    file: tasks/add_mount.yml
+  vars:
+    task_add_mount__app_config: "{{ app_config }}"
+    task_add_mount__mount_config: "{{ item_mount }}"
+  with_items: "{{ app_config.mounts | selectattr('fstype', 'equalto', 'exfat') }}"
+  loop_control:
+    loop_var: item_mount
+  when: app_config.mounts is defined 
+
+#pre reqs
+- name: Check for prereqs for "{{ application.name }}"
+  become: no
+  local_action: stat path="{{ pre_path }}"
+  register: pre_deploy
+
+- name: Do prereqs for "{{ application.name }}"
+  include_tasks:
+    file: "{{ pre_path }}"
+  when: pre_deploy.stat.exists
+  register:
+    pre_deploy_action
+
+#deploy files
+- name: Copy pre req templates for "{{ application.name }}"
+  template:
+    src: "templates/{{ application_group }}/{{app_name_lower}}.pre.{{ prereq_templates.template_name }}"
+    dest: "{{ prereq_templates.destination }}"
+    owner: "{{ app_config.username }}"
+    group: "{{ app_config.groupname }}"
+  with_items: "{{ app_config.prereq }}"
+  loop_control:
+    loop_var: prereq_templates
+  when: app_config.prereq is defined  
+  register: prereq
+
+#docker compose configuration
+- name: add user to docker group for "{{ application.name }}"
+  user:
+    name: "{{ app_config.username }}"
+    groups: docker
+    append: yes
+  when: app_config.username is defined    
+
+- name: Make sure destination dir exists for "{{ application.name }}"
+  file:
+    path: "{{ compose_path | dirname }}"
+    state: directory
+    owner: "{{ app_config.username }}"
+    group: "{{ app_config.groupname }}"
+  when:
+    - app_config.username is defined
+    - app_config.groupname is defined
+    - compose_path is defined
+
+- name: Check for compose template
+  delegate_to: localhost
+  become: no
+  ansible.builtin.stat:
+    path: "templates/{{ application_group }}/{{ app_name_lower }}.docker-compose.yml"
+  register: stat_compose_template
+
+- name: Check for compose file for "{{ application.name }}"
+  become: no
+  local_action: stat path="{{ compose_path }}"
+  register: stat_compose_path
+
+- name: Copy compose file for "{{ application.name }}"
+  template:
+    src: "templates/{{ application_group }}/{{ app_name_lower }}.docker-compose.yml"
+    dest: "{{ compose_path }}"
+    owner: "{{ app_config.username }}"
+    group: "{{ app_config.groupname }}"
+  register: compose
+  when:
+    - stat_compose_template.stat.exists
+
+#post reqs
+- name: Check for postreqs for "{{ application.name }}"
+  become: no
+  local_action: stat path="{{ post_path }}"
+  register: post_deploy
+
+- name: Do post deploy for "{{ application.name }}"
+  include_tasks:
+    file: "{{ post_path }}"
+  when: post_deploy.stat.exists
+  register:
+    post_deploy_action
+
+#deploy and start service
+- name: Deploy service for "{{ application.name }}"
+  template:
+    src: ../templates/core/docker-compose.service
+    dest: "{{ service_path }}"
+  register:
+    service
+
+- name: Start service for "{{ application.name }}"
+  service:
+    name: "{{ service_name }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  register:
+    started
+
+- name: Restart service for "{{ application.name }}"
+  service:
+    name: "{{ service_name }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  when:
+    - prereq.changed or compose.changed or pre_deploy_action.changed or post_deploy_action.changed or service.changed or app.changed
+    - started is not defined

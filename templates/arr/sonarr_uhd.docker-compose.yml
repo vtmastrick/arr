@@ -1,0 +1,27 @@
+---
+yservices:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr_uhd
+    environment:
+      - PUID=2061
+      - PGID=8888
+      - TZ=America/New_York
+    volumes:
+      - ./config/:/config
+      - /mnt/sonarr_uhd/tv:/data/tv #optional
+      - /mnt/sonarr_uhd/usenet/completed:/data/usenet/downloads/completed #optional
+      - /mnt/sonarr_uhd/torrents:/data/torrents/downloads #optional
+    ports:
+      - 8988:8989
+    restart: unless-stopped
+    networks:
+      - arr_network
+      - nginx-bridge
+
+networks:
+  arr_network:
+    external: true
+  nginx-bridge:
+    external: true
+

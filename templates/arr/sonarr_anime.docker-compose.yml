@@ -1,0 +1,27 @@
+---
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr_anime
+    environment:
+      - PUID=2062
+      - PGID=8888
+      - TZ=America/New_York
+    volumes:
+      - ./config/:/config
+      - /mnt/sonarr_anime/anime:/data/anime #optional
+      - /mnt/sonarr_anime/usenet/completed:/data/usenet/downloads/completed #optional
+      - /mnt/sonarr_anime/torrents:/data/torrents/downloads #optional
+    ports:
+      - 8987:8989
+    restart: unless-stopped
+    networks:
+      - arr_network
+      - nginx-bridge
+
+networks:
+  arr_network:
+    external: true
+  nginx-bridge:
+    external: true
+

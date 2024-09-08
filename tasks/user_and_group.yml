@@ -1,0 +1,35 @@
+---
+- name: include users
+  include_vars:
+    file: users.yml
+
+- name: include map
+  include_vars:
+    file: maps.yml
+
+- name: "create {{ user_object.groupname }} group"
+  group:
+    name: "{{ user_object.groupname }}"
+    gid: "{{ user_object.gid }}"
+    state: present
+
+- name: "create {{ user_object.username }} user"
+  user:
+    name: "{{ user_object.username }}"
+    uid: "{{ user_object.uid }}"
+    state: present
+    group: "{{ user_object.gid }}"
+  when: user_object.username is defined    
+
+- name: "add {{ user_object.username }} to additional groups"
+  user:
+    name: "{{ user_object.username }}"
+    groups: "{{ item }}"
+    append: yes
+  with_items: "{{ user_object.groups }}"
+  loop_control:
+    loop_var: item    
+  when:
+    - user_object.groups is defined
+    - user_object.username is defined 
+  

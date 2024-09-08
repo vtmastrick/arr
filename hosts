@@ -1,0 +1,7 @@
+all:
+  vars:
+    ansible_connection: ssh
+    ansible_user: ansible
+  hosts:
+    arr:
+      ansible_host: arr01.local.mastrick.com
