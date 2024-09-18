@@ -32,11 +32,12 @@ sonarr:
           except:
             - mastrick
             - Special Edition
+            - Web Tier 01 - Preferred
         upgrade:
           allowed: true
           until_quality: WEB 1080p
           until_score: 10000
-        min_format_score: 0
+        min_format_score: 1
         score_set: hd-web-sonarr
         quality_sort: top
         qualities:
@@ -57,27 +58,28 @@ sonarr:
           except:
             - mastrick
             - Special Edition
+            - 720p
+            - Remux Tier 01 - Preferred
+            - Web Tier 01 - Preferred
         upgrade:
           allowed: true
-          until_quality: Bluray-1080p Remux
+          until_quality: HD
           until_score: 10000
-        min_format_score: 0
+        min_format_score: 50
         score_set: hd-archive-sonarr
         quality_sort: top
         qualities:
-          - name: Bluray-1080p Remux
-          - name: Bluray-1080p
-          - name: WEB 1080p
+          - name: HD
             qualities:
+              - Bluray-1080p Remux
+              - Bluray-1080p
               - WEBRip-1080p
               - WEBDL-1080p
-          - name: HDTV-1080p
-          - name: Bluray-720p
-          - name: WEB 720p
-            qualities:
+              - HDTV-1080p
+              - Bluray-720p
               - WEBRip-720p
               - WEBDL-720p
-          - name: HDTV-720p
+              - HDTV-720p
 
     media_naming:
       series: plex
@@ -89,7 +91,7 @@ sonarr:
     # https://trash-guides.info/Sonarr/Sonarr-Release-Profile-RegEx/
     delete_old_custom_formats: true
     replace_existing_custom_formats: true
-    
+
     custom_formats:
       # Series
       - trash_ids:
@@ -498,18 +500,17 @@ radarr:
             - mastrick
         upgrade:
           allowed: true
-          until_quality: Remux-1080p
+          until_quality: Bluray|WEB 2160p
           until_score: 10000
         min_format_score: 0
         score_set: uhd-radarr
         quality_sort: top
         qualities:
-          - name: Remux-1080p
-          - name: Bluray|WEB 1080p
+          - name: Bluray|WEB 2160p
             qualities:
-              - Bluray-1080p
-              - WEBRip-1080p
-              - WEBDL-1080p
+              - Bluray-2160p
+              - WEBRip-2160p
+              - WEBDL-2160p
 
     custom_formats:
       - trash_ids:

@@ -49,7 +49,7 @@
           - name : Radarr_HD
           - name : Radarr_UHD
           - name : Radarr_Anime
-#          - name : Recyclarr
+          - name : Recyclarr
           - name : Torrent_QBT
 
     - name: setup application
